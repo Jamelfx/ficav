@@ -28,7 +28,7 @@ export async function GET(
     console.error('Press release error:', error);
     // Return fallback data
     const fallback = getFallbackPressReleases().find(
-      (pr) => pr.slug === (params ? (await params).slug : '')
+     async (pr) => pr.slug === (params ? (await params).slug : '')
     );
 
     if (!fallback) {
