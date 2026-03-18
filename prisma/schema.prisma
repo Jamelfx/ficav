@@ -1,0 +1,932 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./ficav.db"
+}
+
+// User roles
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN_ASSOCIATION
+  PROFESSIONAL
+  VISITOR
+}
+
+// Association status
+enum AssociationStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+// Payment status
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+  CANCELLED
+}
+
+// Event types
+enum EventType {
+  FESTIVAL
+  ASSEMBLY
+  TRAINING
+  PROJECTION
+  CONFERENCE
+  WORKSHOP
+}
+
+// Job types
+enum JobType {
+  EMPLOI
+  CASTING
+  APPEL_PROJET
+  STAGE
+  FORMATION
+}
+
+// Badge types
+enum BadgeType {
+  CERTIFIED_TECHNICIAN
+  OFFICIAL_MEMBER
+  RECOGNIZED_ASSOCIATION
+  VERIFIED_PROFESSIONAL
+}
+
+// Expense categories for accounting
+enum ExpenseCategory {
+  ADMINISTRATIVE
+  EVENT
+  EQUIPMENT
+  COMMUNICATION
+  TRANSPORT
+  FORMATION
+  LOGISTICS
+  SALARY
+  RENT
+  UTILITIES
+  SUPPLIES
+  OTHER
+}
+
+// Expense status
+enum ExpenseStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PAID
+}
+
+// Associations Membres
+model Association {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  logo        String?
+  description String?
+  category    String?  // catégorie professionnelle
+  
+  // Responsables
+  president   String?
+  vicePresident String?
+  secretary   String?
+  treasurer   String?
+  
+  // Coordonnées
+  address     String?
+  city        String?
+  phone       String?
+  email       String?
+  website     String?
+  
+  // Géolocalisation
+  latitude    Float?
+  longitude   Float?
+  
+  // Status
+  status      AssociationStatus @default(ACTIVE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  members     User[]
+  films       Film[]
+  events      Event[]
+  jobs        Job[]
+  cotisations Cotisation[]
+  documents   Document[]
+  media       Media[]
+  membership  AssociationMembership?
+  associationCotisations AssociationCotisation[]
+}
+
+// Users / Professionals
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  avatar        String?
+  bio           String?
+  phone         String?
+  
+  // Role & Status
+  role          UserRole @default(VISITOR)
+  isVerified    Boolean  @default(false)
+  
+  // Professional info
+  skills        String?  // JSON array of skills
+  experience    String?
+  portfolio     String?
+  
+  // Association membership
+  associationId String?
+  association   Association? @relation(fields: [associationId], references: [id])
+  
+  // Badge
+  badges        Badge[]
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  filmsAsDirector    Film[]     @relation("DirectorFilms")
+  filmsAsActor       FilmCast[]
+  filmCrew           FilmCrew[]
+  cotisationPayments Payment[]
+}
+
+// Badge System
+model Badge {
+  id          String    @id @default(cuid())
+  type        BadgeType
+  issuedAt    DateTime  @default(now())
+  expiresAt   DateTime?
+  
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+// Films - Base de données du cinéma ivoirien
+model Film {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  titleOriginal String?
+  poster        String?
+  synopsis      String?
+  
+  // Details
+  duration      Int?     // in minutes
+  year          Int
+  genre         String?
+  country       String   @default("Côte d'Ivoire")
+  language      String?
+  
+  // Trailer
+  trailerUrl    String?
+  
+  // Festival & Awards
+  awards        String?  // JSON array
+  
+  // Status
+  isPublished   Boolean  @default(true)
+  
+  // Timestamps
+  releaseDate   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  directorId    String?
+  director      User?    @relation("DirectorFilms", fields: [directorId], references: [id])
+  
+  associationId String?
+  association   Association? @relation(fields: [associationId], references: [id])
+  
+  cast          FilmCast[]
+  crew          FilmCrew[]
+}
+
+// Film Cast (Actors)
+model FilmCast {
+  id          String   @id @default(cuid())
+  characterName String?
+  
+  filmId      String
+  film        Film     @relation(fields: [filmId], references: [id])
+  
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id])
+  
+  actorName   String?  // If not in system
+}
+
+// Film Crew (Technical Team)
+model FilmCrew {
+  id          String   @id @default(cuid())
+  role        String   // Director of Photography, Editor, etc.
+  
+  filmId      String
+  film        Film     @relation(fields: [filmId], references: [id])
+  
+  memberId    String?
+  member      User?    @relation(fields: [memberId], references: [id])
+  
+  memberName  String?  // If not in system
+}
+
+// Cotisations (Membership Fees)
+model Cotisation {
+  id            String        @id @default(cuid())
+  year          Int
+  amount        Float
+  dueDate       DateTime
+  
+  // Payment info
+  status        PaymentStatus @default(PENDING)
+  paidAt        DateTime?
+  paymentMethod String?
+  transactionId String?
+  
+  // Receipt
+  receiptUrl    String?
+  
+  // Timestamps
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  // Relations
+  associationId String
+  association   Association   @relation(fields: [associationId], references: [id])
+  
+  payments      Payment[]
+}
+
+// Payment Records
+model Payment {
+  id            String   @id @default(cuid())
+  amount        Float
+  paidAt        DateTime @default(now())
+  method        String   // Orange Money, Wave, Card, etc.
+  transactionId String?
+  receiptUrl    String?
+  
+  cotisationId  String?
+  cotisation    Cotisation? @relation(fields: [cotisationId], references: [id])
+  
+  userId        String?
+  user          User?       @relation(fields: [userId], references: [id])
+}
+
+// Events - Agenda
+model Event {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  description   String?
+  
+  // Type
+  type          EventType
+  
+  // Location
+  venue         String?
+  address       String?
+  city          String?
+  
+  // Dates
+  startDate     DateTime
+  endDate       DateTime?
+  
+  // Media
+  image         String?
+  videoUrl      String?
+  
+  // Capacity
+  maxAttendees  Int?
+  
+  // Status
+  isPublished   Boolean   @default(true)
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  associationId String?
+  association   Association? @relation(fields: [associationId], references: [id])
+}
+
+// Job Offer Status
+enum JobOfferStatus {
+  PENDING     // En attente de validation
+  APPROVED    // Validé par le Directeur de la Communication
+  REJECTED    // Refusé
+  PUBLISHED   // Publié
+  EXPIRED     // Expiré
+}
+
+// Jobs / Professional Offers
+model Job {
+  id            String    @id @default(cuid())
+  slug          String    @unique
+  title         String
+  description   String?
+  
+  // Type
+  type          JobType
+  
+  // Details
+  location      String?
+  isRemote      Boolean   @default(false)
+  salary        String?
+  deadline      DateTime?
+  
+  // Requirements
+  requirements  String?   // JSON array
+  
+  // Contact
+  contactEmail  String?
+  contactPhone  String?
+  
+  // Status
+  status        JobOfferStatus @default(PENDING)
+  isFilled      Boolean   @default(false)
+  isPublished   Boolean   @default(false)
+  
+  // Validation
+  validatedBy   String?   // User ID of Director of Communication
+  validatedAt   DateTime?
+  rejectionReason String?
+  
+  // Timestamps
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Relations
+  associationId String?
+  association   Association? @relation(fields: [associationId], references: [id])
+}
+
+// Notifications for federation admins
+model Notification {
+  id            String   @id @default(cuid())
+  
+  // Type
+  type          String   // JOB_OFFER, EVENT, MEMBERSHIP, etc.
+  title         String
+  message       String
+  
+  // Reference
+  referenceId   String?  // ID of related entity (Job, Event, etc.)
+  referenceType String?  // Job, Event, etc.
+  
+  // Recipient
+  recipientRole String   // DIRECTEUR_COMMUNICATION, SECRETAIRE_GENERAL, etc.
+  recipientId   String?  // Specific user ID if needed
+  
+  // Status
+  isRead        Boolean  @default(false)
+  readAt        DateTime?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+}
+
+// Documents
+model Document {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  
+  // Type
+  category      String   // statuts, reglements, pv, rapport, etc.
+  
+  // File
+  fileUrl       String
+  fileType      String?
+  fileSize      Int?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  associationId String?
+  association   Association? @relation(fields: [associationId], references: [id])
+}
+
+// Media Gallery
+model Media {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  
+  // Type
+  type          String   // photo, video
+  
+  // Files
+  url           String
+  thumbnailUrl  String?
+  
+  // Category
+  category      String?  // conference, interview, event, etc.
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  associationId String?
+  association   Association? @relation(fields: [associationId], references: [id])
+}
+
+// News / Actualités
+model News {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  excerpt       String?
+  content       String
+  
+  // Media
+  image         String?
+  
+  // Status
+  isPublished   Boolean  @default(true)
+  isFeatured    Boolean  @default(false)
+  
+  // Timestamps
+  publishedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Statistics
+model Statistics {
+  id                    String   @id @default(cuid())
+  year                  Int      @unique
+  
+  totalFilms            Int      @default(0)
+  totalTechnicians      Int      @default(0)
+  totalAssociations     Int      @default(0)
+  totalProductions      Int      @default(0)
+  
+  // Additional metrics (JSON)
+  genreDistribution     String?
+  regionalDistribution  String?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+// Press Releases
+model PressRelease {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  title         String
+  content       String
+  
+  // Type
+  type          String   // communiqué, dossier, conférence
+  
+  // File
+  attachmentUrl String?
+  
+  // Status
+  isPublished   Boolean  @default(true)
+  
+  // Timestamps
+  publishedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Expenses - Accounting System for Treasurer
+model Expense {
+  id              String          @id @default(cuid())
+  reference       String          @unique // REF-2024-001
+  
+  // Description
+  title           String
+  description     String?
+  
+  // Amount
+  amount          Float
+  currency        String          @default("XOF")
+  
+  // Category
+  category        ExpenseCategory @default(OTHER)
+  
+  // Dates
+  expenseDate     DateTime        // Date de la dépense
+  paymentDate     DateTime?       // Date du paiement effectif
+  
+  // Status
+  status          ExpenseStatus   @default(DRAFT)
+  
+  // Beneficiary
+  beneficiary     String?         // Personne ou entreprise payée
+  beneficiaryType String?         // employee, supplier, service, etc.
+  
+  // Payment method
+  paymentMethod   String?         // cash, bank_transfer, mobile_money, check
+  
+  // Approval
+  approvedBy      String?         // User ID who approved
+  approvedAt      DateTime?
+  rejectionReason String?
+  
+  // Budget
+  budgetLine      String?         // Ligne budgétaire
+  
+  // Event reference (if expense is for an event)
+  eventId         String?
+  eventName       String?
+  
+  // Timestamps
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  
+  // Relations
+  documents       ExpenseDocument[]
+}
+
+// Supporting Documents for Expenses (Invoices, Receipts, etc.)
+model ExpenseDocument {
+  id            String   @id @default(cuid())
+  
+  // Document info
+  title         String
+  description   String?
+  documentType  String   // invoice, receipt, quote, contract, other
+  
+  // File
+  fileUrl       String
+  fileName      String
+  fileSize      Int?
+  fileType      String?
+  
+  // Timestamps
+  uploadedAt    DateTime @default(now())
+  
+  // Relations
+  expenseId     String
+  expense       Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+}
+
+// Budget Lines - For budget planning
+model BudgetLine {
+  id            String   @id @default(cuid())
+  
+  // Info
+  name          String
+  description   String?
+  
+  // Amounts
+  allocated     Float    // Montant alloué
+  spent         Float    @default(0) // Montant dépensé
+  
+  // Period
+  year          Int
+  quarter       Int?     // Trimestre (1-4)
+  
+  // Category
+  category      ExpenseCategory
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Financial Reports
+model FinancialReport {
+  id            String   @id @default(cuid())
+  
+  // Info
+  title         String
+  description   String?
+  reportType    String   // monthly, quarterly, annual, special
+  
+  // Period
+  startDate     DateTime
+  endDate       DateTime
+  year          Int
+  
+  // Summary
+  totalIncome   Float    @default(0)
+  totalExpense  Float    @default(0)
+  balance       Float    @default(0)
+  
+  // Status
+  isApproved    Boolean  @default(false)
+  approvedBy    String?
+  approvedAt    DateTime?
+  
+  // File (generated PDF)
+  fileUrl       String?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Federation Events (AG, Congress, etc.)
+model FederationEvent {
+  id            String   @id @default(cuid())
+  
+  // Info
+  name          String
+  description   String?
+  type          String   // AGO, AGE, CONGRES, FESTIVAL, OTHER
+  
+  // Date & Time
+  date          DateTime
+  startTime     String?  // HH:mm format
+  endTime       String?
+  
+  // Location
+  venue         String?
+  address       String?
+  city          String?
+  
+  // Colors for cards (FICAV default: orange/white/black)
+  primaryColor  String   @default("#F97316")   // Orange
+  secondaryColor String  @default("#FFFFFF")   // White
+  accentColor   String   @default("#000000")   // Black
+  
+  // Logo
+  logoUrl       String?
+  
+  // Status
+  isActive      Boolean  @default(true)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  accessCards   AccessCard[]
+  attendances   EventAttendance[]
+}
+
+// Access Cards for Events
+model AccessCard {
+  id            String   @id @default(cuid())
+  cardId        String   @unique // Unique card identifier (QR code value)
+  
+  // Event reference
+  eventId       String
+  event         FederationEvent @relation(fields: [eventId], references: [id])
+  
+  // Association info
+  associationId String?
+  associationName String
+  associationShortName String
+  
+  // Representative info
+  representativeFirstName String?
+  representativeLastName String?
+  representativeFunction String?
+  
+  // Card details
+  cardNumber    Int      // Card number for this association
+  
+  // Colors (can override event defaults)
+  primaryColor  String?
+  secondaryColor String?
+  accentColor   String?
+  
+  // Status
+  isActivated   Boolean  @default(false)
+  isPrinted     Boolean  @default(false)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  attendance    EventAttendance?
+}
+
+// Event Attendance (scanned cards)
+model EventAttendance {
+  id            String   @id @default(cuid())
+  
+  // Event reference
+  eventId       String
+  event         FederationEvent @relation(fields: [eventId], references: [id])
+  
+  // Card reference
+  cardId        String   @unique
+  card          AccessCard @relation(fields: [cardId], references: [id])
+  
+  // Scan info
+  scannedAt     DateTime @default(now())
+  scannedBy     String?  // User ID of scanner (Dir. Communication)
+  
+  // Sent to Secretary
+  sentToSecretary Boolean @default(false)
+  sentAt        DateTime?
+}
+
+// Federation Settings - Global configuration
+model FederationSettings {
+  id            String   @id @default(cuid())
+  
+  // Logo
+  logoUrl       String?  // Path to logo image
+  logoWidth     Int      @default(48)
+  logoHeight    Int      @default(48)
+  
+  // Brand Colors
+  primaryColor  String   @default("#F97316")   // Orange
+  secondaryColor String  @default("#FFFFFF")   // White
+  accentColor   String   @default("#000000")   // Black
+  
+  // Contact Info
+  email         String?
+  phone         String?
+  address       String?
+  
+  // Social Media
+  facebook      String?
+  twitter       String?
+  youtube       String?
+  instagram     String?
+  linkedin      String?
+  
+  // Hero Section
+  heroTitle     String?
+  heroSubtitle  String?
+  heroDescription String?
+  heroImageUrl  String?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Site Content - Dynamic content management
+model SiteContent {
+  id            String   @id @default(cuid())
+  
+  // Section identifier
+  section       String   @unique  // hero, stats, about, etc.
+  
+  // Content (JSON)
+  content       String   // JSON string containing all section data
+  
+  // Status
+  isActive      Boolean  @default(true)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// Gallery Album
+model GalleryAlbum {
+  id            String   @id @default(cuid())
+  
+  // Info
+  title         String
+  description   String?
+  slug          String   @unique
+  
+  // Cover
+  coverImage    String?
+  
+  // Order
+  order         Int      @default(0)
+  
+  // Status
+  isPublished   Boolean  @default(true)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  photos        GalleryPhoto[]
+}
+
+// Gallery Photo
+model GalleryPhoto {
+  id            String   @id @default(cuid())
+  
+  // Info
+  title         String?
+  description   String?
+  
+  // Image
+  url           String
+  thumbnailUrl  String?
+  
+  // Order
+  order         Int      @default(0)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  albumId       String
+  album         GalleryAlbum @relation(fields: [albumId], references: [id], onDelete: Cascade)
+}
+
+// Association Membership (Adhésion) - One-time fee for joining the federation
+model AssociationMembership {
+  id              String   @id @default(cuid())
+  
+  // Association
+  associationId   String   @unique
+  association     Association @relation(fields: [associationId], references: [id])
+  
+  // Membership fee
+  amount          Float    // Montant de l'adhésion
+  year            Int      // Année d'adhésion
+  
+  // Payment info
+  status          PaymentStatus @default(PENDING)
+  paidAt          DateTime?
+  paymentMethod   String?  // Orange Money, Wave, Bank Transfer, Cash
+  transactionId   String?
+  receiptUrl      String?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Association Cotisation - Annual or monthly fees
+model AssociationCotisation {
+  id              String   @id @default(cuid())
+  
+  // Association
+  associationId   String
+  association     Association @relation(fields: [associationId], references: [id])
+  
+  // Period
+  year            Int      // Année
+  month           Int?     // Mois (null for annual)
+  type            String   // "MONTHLY" or "ANNUAL"
+  
+  // Amount
+  amount          Float    // Montant
+  
+  // Payment info
+  status          PaymentStatus @default(PENDING)
+  dueDate         DateTime
+  paidAt          DateTime?
+  paymentMethod   String?  // Orange Money, Wave, Bank Transfer, Cash
+  transactionId   String?
+  receiptUrl      String?
+  
+  // Timestamps
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@unique([associationId, year, month, type])
+}
+
+// Association Invitation - Secretary sends invitation with payment requirement
+model AssociationInvitation {
+  id              String   @id @default(cuid())
+  
+  // Association info
+  associationName String
+  associationShortName String
+  email           String   @unique
+  
+  // Invitation details
+  invitationToken String   @unique
+  sentBy          String?  // User ID of Secretary
+  
+  // Payment requirement
+  membershipFee   Float    // Montant de l'adhésion requise
+  firstCotisation  Float?  // Première cotisation si applicable
+  requirePayment  Boolean  @default(true) // Paiement obligatoire avant création du compte
+  
+  // Status
+  isAccepted      Boolean  @default(false)
+  isPaid          Boolean  @default(false) // Adhésion payée
+  paidAt          DateTime?
+  paymentMethod   String?
+  transactionId   String?
+  
+  // Timestamps
+  sentAt          DateTime @default(now())
+  expiresAt       DateTime?
+  acceptedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
