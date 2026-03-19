@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { ImageUpload } from "@/components/common/image-upload";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
-import { useState as useFormState } from "react";
 
 interface NewsForm {
   title: string;
@@ -166,27 +166,13 @@ export default function NewsFormPage() {
                   />
                 </div>
 
-                {/* Image URL */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    URL de l'image
-                  </label>
-                  <Input
-                    type="url"
-                    placeholder="https://..."
-                    value={form.image}
-                    onChange={(e) =>
-                      setForm({ ...form, image: e.target.value })
-                    }
-                  />
-                  {form.image && (
-                    <img
-                      src={form.image}
-                      alt="Preview"
-                      className="mt-3 rounded-lg max-h-48 w-full object-cover"
-                    />
-                  )}
-                </div>
+                {/* Image Upload */}
+                <ImageUpload
+                  value={form.image}
+                  onChange={(url) => setForm({ ...form, image: url })}
+                  label="Image de l'actualité"
+                  hint="JPG, PNG, WebP, GIF (max 10MB)"
+                />
 
                 {/* Content */}
                 <div>
