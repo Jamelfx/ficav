@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
@@ -20,6 +21,8 @@ import {
   BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
+import { Button } from "@/components/ui/button";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,6 +40,7 @@ const navItems = [
 export function AdminSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <motion.aside
@@ -91,7 +95,16 @@ export function AdminSidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-border">
+      <div className="p-3 border-t border-border space-y-3">
+        {/* User info */}
+        {user && !collapsed && (
+          <div className="px-3 py-2 bg-secondary/50 rounded-lg">
+            <p className="text-xs text-muted-foreground">Connecté en tant que</p>
+            <p className="text-sm font-medium truncate">{user.email}</p>
+          </div>
+        )}
+        
+        {/* Back to site */}
         <Link
           href="/"
           className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
@@ -100,6 +113,16 @@ export function AdminSidebar() {
           <LogOut size={20} />
           {!collapsed && <span className="text-sm font-medium">Retour au site</span>}
         </Link>
+        
+        {/* Logout button */}
+        <Button
+          onClick={() => logout()}
+          variant="outline"
+          className="w-full"
+          size="sm"
+        >
+          {collapsed ? "..." : "Déconnexion"}
+        </Button>
       </div>
     </motion.aside>
   );
