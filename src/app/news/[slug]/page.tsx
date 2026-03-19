@@ -34,14 +34,20 @@ export async function generateMetadata({ params }: Props) {
 }
 
 export async function generateStaticParams() {
-  const news = await db.news.findMany({
-    where: { isPublished: true },
-    select: { slug: true },
-  });
+  try {
+    const news = await db.news.findMany({
+      where: { isPublished: true },
+      select: { slug: true },
+    });
 
-  return news.map((item) => ({
-    slug: item.slug,
-  }));
+    return news.map((item) => ({
+      slug: item.slug,
+    }));
+  } catch (error) {
+    console.error("Erreur lors de generateStaticParams:", error);
+    // Retourner un array vide si la DB n'est pas accessible
+    return [];
+  }
 }
 
 export default async function NewsDetailPage({ params }: Props) {
