@@ -33,6 +33,9 @@ import {
 import { useAuth } from "@/lib/auth-context";
 import { toast } from "sonner";
 
+// Force dynamic rendering
+export const dynamic = 'force-dynamic';
+
 interface Event {
   id: string;
   slug: string;
