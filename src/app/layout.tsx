@@ -3,6 +3,8 @@ import { Bebas_Neue, Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/components/auth-provider";
+import { GoogleAnalytics } from "@/components/google-analytics";
+import { NextThemeProvider } from "@/components/next-theme-provider";
 
 const bebasNeue = Bebas_Neue({
   variable: "--font-bebas",
@@ -39,17 +41,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className="dark" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <body
         className={`${bebasNeue.variable} ${inter.variable} font-sans antialiased bg-background text-foreground min-h-screen`}
         suppressHydrationWarning
       >
-        <AuthProvider>
-          <div className="relative min-h-screen flex flex-col">
-            {children}
-          </div>
-        </AuthProvider>
+        <NextThemeProvider>
+          <AuthProvider>
+            <div className="relative min-h-screen flex flex-col">
+              {children}
+            </div>
+          </AuthProvider>
+        </NextThemeProvider>
         <Toaster />
+        <GoogleAnalytics />
       </body>
     </html>
   );
