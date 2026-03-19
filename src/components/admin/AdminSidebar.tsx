@@ -23,11 +23,12 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/news", label: "Actualités", icon: FileText },
+  { href: "/admin/events", label: "Événements", icon: Calendar },
+  { href: "/admin/films", label: "Films", icon: Film },
+  { href: "/admin/jobs", label: "Offres", icon: Briefcase },
   { href: "/admin/associations", label: "Associations", icon: Building2 },
   { href: "/admin/users", label: "Utilisateurs", icon: Users },
-  { href: "/admin/films", label: "Films", icon: Film },
-  { href: "/admin/events", label: "Événements", icon: Calendar },
-  { href: "/admin/jobs", label: "Offres", icon: Briefcase },
   { href: "/admin/documents", label: "Documents", icon: FileText },
   { href: "/admin/cotisations", label: "Cotisations", icon: DollarSign },
   { href: "/admin/settings", label: "Paramètres", icon: Settings },
